@@ -1,0 +1,22 @@
+stateDiagram-v2
+    [*] --> plan
+    plan --> retrieve: tenant_id, intent, symptom_terms
+    retrieve --> reflect: causal chain + evidence
+    reflect --> retrieve: nothing found → widen scope (once)
+    reflect --> synthesize: chain ready
+    synthesize --> [*]: cited narrative
+
+    note right of plan
+      LLM or regex heuristic.
+      Rejects invented tenants.
+    end note
+    note right of retrieve
+      Deterministic tools only.
+      Full-timeline / symptom-anchored
+      (defeats the "16:10" trap).
+    end note
+    note right of synthesize
+      Evidence-grounded.
+      Citations verified → else
+      deterministic fallback.
+    end note

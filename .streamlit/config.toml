@@ -1,0 +1,14 @@
+# Base theme — keeps un-styled widgets consistent with the custom CSS in webapp.py
+[theme]
+base = "dark"
+primaryColor = "#6366F1"
+backgroundColor = "#0A0E1A"
+secondaryBackgroundColor = "#121A2E"
+textColor = "#E8ECF6"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

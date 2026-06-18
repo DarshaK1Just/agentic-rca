@@ -1,0 +1,29 @@
+# Secrets — never commit real keys
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Local stores / model caches
+*.duckdb
+.chroma/
+chroma/
+.cache/
+
+# Node (mermaid-cli + docx generators)
+node_modules/
+package-lock.json
+
+# Scratch / runtime logs (NOTE: data/*.log are intentionally tracked)
+.venv_install.log
+.streamlit.log
+~$*.docx
+
+# OS
+.DS_Store
+Thumbs.db
