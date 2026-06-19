@@ -26,7 +26,11 @@ from rca.config import settings
 from rca.pipeline import build_engine
 from rca import ui_theme as ui
 
-st.set_page_config(page_title="RCA Engine — Log Intelligence Console", layout="wide")
+st.set_page_config(
+    page_title="RCA Engine — Log Intelligence Console",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 st.markdown(ui.CSS, unsafe_allow_html=True)
 
 # Safe defaults — overwritten in sidebar once llm_available() is resolved

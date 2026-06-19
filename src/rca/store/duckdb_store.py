@@ -41,21 +41,37 @@ class DuckDBStore:
 
     # ── ingestion ──────────────────────────────────────────────────────────
     def load_events(self, events: list[LogEvent]) -> int:
-        rows = [
-            (
-                e.event_id, e.raw_line_no, e.ts or None, e.tenant_id, e.level.value,
-                e.level.severity, e.component, e.message, e.template_id,
-                e.template_text, _json(e.params), e.stack_trace, e.source_file,
-            )
+        """Bulk-insert via pandas DataFrame — DuckDB scans it with zero serialization
+        overhead, ~10-20× faster than executemany row-by-row."""
+        if not events:
+            return 0
+        import pandas as pd
+        df = pd.DataFrame([
+            {
+                "event_id": e.event_id,
+                "raw_line_no": e.raw_line_no,
+                "ts": e.ts or None,
+                "tenant_id": e.tenant_id,
+                "level": e.level.value,
+                "severity": e.level.severity,
+                "component": e.component,
+                "message": e.message,
+                "template_id": e.template_id,
+                "template_text": e.template_text,
+                "params": _json(e.params),
+                "stack_trace": e.stack_trace,
+                "source_file": e.source_file,
+            }
             for e in events
-        ]
-        self.con.executemany(
-            "INSERT INTO events VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", rows
-        )
-        # Indexes for high-throughput structural filtering.
+        ])
+        self.con.execute("INSERT INTO events SELECT * FROM df")
+        return len(df)
+
+    def build_indexes(self) -> None:
+        """Create structural indexes once — call AFTER all files are loaded,
+        not after each individual file (avoids redundant multi-file rebuilds)."""
         for col in ("tenant_id", "ts", "level", "template_id", "component"):
             self.con.execute(f"CREATE INDEX IF NOT EXISTS idx_{col} ON events({col})")
-        return len(rows)
 
     # ── structural plane ─────────────────────────────────────────────────────
     def tenants(self) -> list[str]:

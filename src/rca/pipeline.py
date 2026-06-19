@@ -33,6 +33,8 @@ def build_engine(
     for p in log_paths:
         events = ingest_file(p)
         total += store.load_events(events)
+    # Build indexes ONCE after all files are loaded (not per-file).
+    store.build_indexes()
     ingest_seconds = time.time() - t0
 
     distinct = store.con.execute(
