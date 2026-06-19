@@ -25,4 +25,3 @@ level = "error"
 
 [browser]
 gatherUsageStats = false
-serverAddress = "localhost"

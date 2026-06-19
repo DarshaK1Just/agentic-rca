@@ -18,6 +18,3 @@ langchain-openai==0.2.10       # OpenRouter / OpenAI-compatible fallback provide
 typer==0.13.1                  # CLI
 streamlit==1.40.2              # minimal web UI
 python-dotenv==1.0.1           # .env loader (BYOK)
-
-# Test
-pytest==8.3.4
