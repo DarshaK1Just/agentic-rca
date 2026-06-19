@@ -50,9 +50,16 @@ html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; }
     linear-gradient(180deg,#0A0E1A 0%,#0B1120 100%);
   color:var(--txt);
 }
-/* hide default chrome */
+/* hide default chrome — keep sidebar toggle visible */
 #MainMenu, footer, header[data-testid="stHeader"],
 [data-testid="stToolbar"], [data-testid="stDecoration"]{ display:none !important; }
+/* ensure the collapsed-sidebar re-expand chevron is always reachable */
+[data-testid="collapsedControl"]{
+  display:flex !important; visibility:visible !important;
+  opacity:1 !important; z-index:999 !important;
+  pointer-events:auto !important;
+}
+[data-testid="collapsedControl"] svg{ fill:var(--muted) !important; }
 .block-container{ padding-top:2.2rem; padding-bottom:4rem; max-width:1180px; }
 
 /* ---- scrollbar ---- */

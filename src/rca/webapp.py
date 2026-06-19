@@ -208,17 +208,10 @@ with st.sidebar:
     use_vectors = st.checkbox("Semantic index", value=False,
                               help="Optional vector layer — not needed for the sample scenarios.")
 
-    # Warm the engine once per (corpus, vectors) so queries are instant afterwards.
+    # Flag if the engine needs warming — actual warming happens in the main area
+    # so the sidebar stays visible and the main area shows a proper loading screen.
     warm_key = (tuple(chosen), use_vectors)
-    if chosen and st.session_state.get("warm_key") != warm_key:
-        with st.spinner("Loading corpus…"):
-            try:
-                _engine_for(*warm_key)
-                st.session_state["warm_key"] = warm_key
-                # Clear upload status once loaded successfully
-                st.session_state["upload_status"] = []
-            except Exception as e:
-                st.error(f"Failed to load corpus: {e}")
+    needs_warm = bool(chosen and st.session_state.get("warm_key") != warm_key)
 
     # ── Navigation (result view only) ────────────────────────────────────────
     if st.session_state["view"] == "result":
@@ -390,6 +383,39 @@ def view_result(chosen, use_vectors, use_llm):
             '<p>The engine returns a cited root cause — not a wall of logs.</p></div>',
             unsafe_allow_html=True)
 
+
+# ─────────────────────────────── corpus warm-up (main area) ─────────────────
+# Warming happens here (not inside the sidebar block) so the sidebar stays
+# visible and the main area shows an informative loading screen instead of
+# being blank while the engine ingests the corpus.
+if needs_warm:
+    st.markdown(
+        """
+        <div style="display:flex;flex-direction:column;align-items:center;
+                    justify-content:center;height:60vh;gap:1.4rem;text-align:center">
+          <div style="font-size:2.6rem;animation:spin 1.1s linear infinite;
+                      display:inline-block">⚙️</div>
+          <div style="font-size:1.25rem;font-weight:600;color:#E8ECF6">
+            Loading corpus…
+          </div>
+          <div style="font-size:.9rem;color:#64748B;max-width:340px">
+            Ingesting log files, mining templates and building the structural index.
+            This only happens once — queries will be instant afterwards.
+          </div>
+        </div>
+        <style>
+          @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    try:
+        _engine_for(*warm_key)
+        st.session_state["warm_key"] = warm_key
+        st.session_state["upload_status"] = []
+    except Exception as e:
+        st.error(f"Failed to load corpus: {e}")
+    st.rerun()
 
 # ─────────────────────────────── router ─────────────────────────────────────
 # st.empty() clears the previous view DOM instantly on navigation (no ghost content).
