@@ -13,6 +13,15 @@ import os
 import sys
 from pathlib import Path
 
+# ── 0. Evict any stale/poisoned rca.* entries from sys.modules ───────────────
+# Python 3.14 is stricter about sys.modules cleanup on failed imports: when an
+# import crashes mid-way, parent packages (rca.synth, rca.agent, …) are removed
+# from sys.modules.  On the next Streamlit hot-reload the import machinery looks
+# them up by key and raises KeyError instead of re-importing cleanly.
+# Wiping all rca.* entries before each run guarantees a fresh import graph.
+for _key in [k for k in sys.modules if k == "rca" or k.startswith("rca.")]:
+    del sys.modules[_key]
+
 import streamlit as st
 
 # ── 1. Resolve project root and make src.* importable ────────────────────────
