@@ -9,12 +9,63 @@ Either way the FACTS come from the deterministic chain, so output is never
 hallucinated; the LLM only improves readability.
 """
 
+import re
 from dataclasses import dataclass, field
 
 from rca.agent.prompts import SYNTH_SYSTEM, SYNTH_USER
 from rca.store.schema import EvidenceRow
 from rca.synth.causal import CausalChain
 from rca.synth.lineage import verify_citations
+
+# Standard remediation guidance per failure class. Used to seed the LLM synthesis
+# prompt and to enrich the deterministic narrative. These are operational best
+# practices — never presented as facts pulled from the logs.
+REMEDIATION = {
+    "DB_CONN": "Increase / tune the connection-pool size and acquisition timeout; hunt for "
+               "connection leaks (unclosed sessions); confirm the database is reachable and "
+               "not at max_connections; wrap the datasource in retry-with-backoff + a circuit breaker.",
+    "OOM": "Capture a heap dump and inspect dominant retained objects; raise the heap limit only "
+           "as a stopgap; look for unbounded caches or collections; tune GC; add memory-pressure alerts.",
+    "DEADLOCK": "Identify the conflicting transactions and enforce a consistent lock-acquisition "
+                "order; shorten transaction scope; add deadlock-retry; review the isolation level.",
+    "THREAD_POOL": "Raise the executor pool / queue capacity as a stopgap; find the slow downstream "
+                   "call saturating threads; add timeouts and bulkheads; shed or rate-limit load.",
+    "DISK": "Free or expand the affected volume immediately; rotate and compress logs; add "
+            "disk-usage alerting; move large artefacts off the hot path.",
+    "KAFKA_LAG": "Scale up consumers / partitions; find the stuck or slow consumer; verify broker "
+                 "health; raise fetch throughput; alert on consumer-group lag.",
+    "GRPC": "Check the downstream service's health and deadlines; add retries with backoff and a "
+            "circuit breaker; raise the deadline only if the callee is healthy but slow.",
+    "REDIS": "Verify Redis connectivity and the maxmemory/eviction policy; check persistence; add a "
+             "connection pool and failover; degrade gracefully on cache miss.",
+    "TLS": "Renew the expired certificate / update the trust store; automate certificate rotation; "
+           "add expiry monitoring well ahead of time.",
+    "TIMEOUT": "Identify the slow dependency; set sensible timeouts with retry + backoff; add a "
+               "circuit breaker; investigate latency at the callee.",
+    "CIRCUIT": "Find the failing downstream that opened the breaker and restore it; tune breaker "
+               "thresholds; ensure graceful degradation while the breaker is open.",
+    "UNKNOWN": "Triage from the trigger event and its stack trace; reproduce in a lower environment; "
+               "add targeted logging/metrics around the failing component; roll back the most recent "
+               "related change if the timing correlates.",
+}
+
+
+def _remediation_for(chain: CausalChain) -> str:
+    return REMEDIATION.get(getattr(chain, "trigger_class", "UNKNOWN") or "UNKNOWN",
+                           REMEDIATION["UNKNOWN"])
+
+
+def _extract_answer(text: str, fallback: str) -> str:
+    """Pull the one-sentence root cause out of the LLM markdown (the **Answer** line)."""
+    for line in text.splitlines():
+        m = re.match(r"^\**\s*answer\s*\**\s*[—:\-]*\s*(.+)$", line.strip(), re.IGNORECASE)
+        if m and m.group(1).strip():
+            return m.group(1).strip().strip("*").strip()
+    for line in text.splitlines():       # fallback: first meaningful line
+        s = line.strip().lstrip("#* ").strip()
+        if s:
+            return s
+    return fallback
 
 
 @dataclass
@@ -96,6 +147,10 @@ def deterministic_narrative(chain: CausalChain) -> tuple[str, str]:
                      f"beginning {s['first_seen']} (e.g. event {s['example_event_id']})")
     for n in chain.notes:
         parts.append(f"- _Note: {n}_")
+    if chain.trigger:
+        parts.append("")
+        parts.append("**Recommended actions:**")
+        parts.append(f"- {_remediation_for(chain)}")
     return answer, "\n".join(parts)
 
 
@@ -119,15 +174,19 @@ def synthesize(
             SystemMessage(content=SYNTH_SYSTEM),
             HumanMessage(content=SYNTH_USER.format(
                 query=query,
+                trigger_class=getattr(chain, "trigger_class", "UNKNOWN") or "UNKNOWN",
+                confidence=getattr(chain, "confidence", 0),
+                chronology_verified=chain.chronology_verified,
                 classification=_classification_text(chain),
                 evidence=_evidence_block(evidence),
+                remediation_hint=_remediation_for(chain),
             )),
         ]
         text = chat_model.invoke(msgs).content.strip()
         ok, unsupported = verify_citations(text, evidence)
         if ok:
             result.narrative = text
-            result.answer = text.splitlines()[0].lstrip("# ").strip() or det_answer
+            result.answer = _extract_answer(text, det_answer)
             result.llm_used = True
         else:
             result.citations_verified = False

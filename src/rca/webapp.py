@@ -354,10 +354,12 @@ def view_result(chosen, use_vectors, use_llm):
     if pending and chosen:
         title = "Analysing with Gemini…" if use_llm and live else "Investigating…"
         panel = st.empty()
-        panel.markdown(ui.investigation_html(None, title), unsafe_allow_html=True)
+        panel.markdown(ui.investigation_html(None, title, query=pending),
+                       unsafe_allow_html=True)
 
         def _on_step(step: str) -> None:
-            panel.markdown(ui.investigation_html(step, title), unsafe_allow_html=True)
+            panel.markdown(ui.investigation_html(step, title, query=pending),
+                           unsafe_allow_html=True)
 
         try:
             _run_and_store(pending, chosen, use_vectors, use_llm, on_step=_on_step)

@@ -305,8 +305,14 @@ input, textarea, .stTextInput input, [data-baseweb="input"] input,
 
 /* ---- investigation progress (live steps) ---- */
 .invq{ min-height:90vh; display:flex; flex-direction:column; align-items:center;
-  justify-content:center; gap:22px; text-align:center;
+  justify-content:center; gap:20px; text-align:center;
   background:linear-gradient(180deg,#0A0E1A 0%,#0B1120 100%); }
+.invq .inv-banner{ width:min(620px,90%); background:var(--surface);
+  border:1px solid var(--border2); border-left:4px solid var(--indigo);
+  border-radius:14px; padding:13px 18px; text-align:left; }
+.invq .inv-banner .lbl{ font-size:.64rem; font-weight:800; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--cyan); margin-bottom:5px; }
+.invq .inv-banner .qy{ font-size:1.02rem; font-weight:600; color:#fff; line-height:1.4; }
 .invq .gear{ font-size:2.4rem; animation:spin 1.1s linear infinite; display:inline-block; }
 .invq h3{ font-size:1.3rem; font-weight:800; color:#fff; margin:0; letter-spacing:-.01em; }
 .invq .steps{ display:flex; flex-direction:column; gap:11px; text-align:left;
@@ -532,10 +538,12 @@ INVESTIGATION_STEPS = [
 ]
 
 
-def investigation_html(active_key: str | None, title: str = "Analysing…") -> str:
+def investigation_html(active_key: str | None, title: str = "Analysing…",
+                       query: str | None = None) -> str:
     """Full-content live-progress panel. `active_key` is the node currently running;
     everything before it is marked done, everything after is pending. When active_key
-    is None nothing is started yet (all pending)."""
+    is None nothing is started yet (all pending). `query` shows the scenario/question
+    being investigated as a banner at the top."""
     keys = [k for k, _ in INVESTIGATION_STEPS]
     active_idx = keys.index(active_key) if active_key in keys else -1
     rows = ""
@@ -549,7 +557,11 @@ def investigation_html(active_key: str | None, title: str = "Analysing…") -> s
         rows += (f'<div class="step-row {state}">'
                  f'<span class="si {icon_cls}">{icon}</span>'
                  f'<span class="st">{label}</span></div>')
-    return (f'<div class="invq"><div class="gear">⚙️</div>'
+    banner = ""
+    if query:
+        banner = (f'<div class="inv-banner"><div class="lbl">Investigating</div>'
+                  f'<div class="qy">{esc(query)}</div></div>')
+    return (f'<div class="invq">{banner}<div class="gear">⚙️</div>'
             f'<h3>{esc(title)}</h3>'
             f'<div class="steps">{rows}</div></div>')
 
