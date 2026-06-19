@@ -5,7 +5,7 @@ mined from high-volume, multi-tenant, interleaved log streams.
 
 > **Design thesis:** deterministic structural reduction (tenant partition → Drain3 template
 > mining → rarity ranking → chronological trigger/symptom ordering) collapses a 5,000-line
-> haystack to ~10 cited rows *before* any LLM runs. The LLM only plans retrieval and narrates
+> haystack to ~10 cited rows _before_ any LLM runs. The LLM only plans retrieval and narrates
 > verified evidence — it never sees raw logs and cannot introduce uncited facts. The engine
 > answers both validation scenarios correctly **with no LLM key at all**.
 
@@ -54,6 +54,7 @@ streamlit run app
 ```
 
 Or with the full path:
+
 ```bash
 streamlit run src/rca/webapp.py
 ```
@@ -68,6 +69,7 @@ Deploy your RCA Engine to the world in 5 minutes:
 #### Step 1: Prepare Your Repository
 
 Ensure these files exist in your root directory (they're already created for you):
+
 - `app.py` ✓ — Entry point for Streamlit
 - `requirements.txt` ✓ — Python dependencies
 - `packages.txt` ✓ — System dependencies
@@ -87,7 +89,6 @@ git push origin main
 1. **Create Streamlit Cloud account** (if you don't have one):
    - Go to https://streamlit.io/cloud
    - Sign in with GitHub
-   
 2. **Deploy your app**:
    - Click "New app"
    - Select your GitHub repo: `rca-engine`
@@ -115,6 +116,7 @@ Your `.env` file should NEVER be committed to GitHub. Instead, use Streamlit Clo
 6. Streamlit will automatically reload your app with the new secrets
 
 **Where to get your Google API key:**
+
 - Go to https://aistudio.google.com/apikey
 - Click "Create API key"
 - Copy the key (starts with `AIza`)
@@ -123,6 +125,7 @@ Your `.env` file should NEVER be committed to GitHub. Instead, use Streamlit Clo
 #### Step 5: Upload Sample Logs
 
 Once your app is live:
+
 1. Open your Streamlit Cloud app URL
 2. In the left sidebar, click "Upload logs"
 3. Drop your `.log` files (use the sample data from `data/` directory)
@@ -133,17 +136,18 @@ Once your app is live:
 
 ### Environment Variables Quick Reference
 
-| Variable | Required? | Where to Set | Example |
-|----------|-----------|-------------|---------|
-| `RCA_LLM_PROVIDER` | No (default: `gemini`) | `.env` or Streamlit Secrets | `gemini`, `openrouter`, `ollama` |
-| `GOOGLE_API_KEY` | Optional | Streamlit Secrets | `AIzaSy...` |
-| `RCA_GEMINI_MODEL` | No (default: `gemini-2.5-flash`) | `.env` or Streamlit Secrets | `gemini-2.5-flash` |
-| `OPENROUTER_API_KEY` | Optional | Streamlit Secrets | `sk-or-v1-...` |
-| `RCA_EMBED_MODEL` | No | `.env` | `sentence-transformers/all-MiniLM-L6-v2` |
+| Variable             | Required?                        | Where to Set                | Example                                  |
+| -------------------- | -------------------------------- | --------------------------- | ---------------------------------------- |
+| `RCA_LLM_PROVIDER`   | No (default: `gemini`)           | `.env` or Streamlit Secrets | `gemini`, `openrouter`, `ollama`         |
+| `GOOGLE_API_KEY`     | Optional                         | Streamlit Secrets           | `AIzaSy...`                              |
+| `RCA_GEMINI_MODEL`   | No (default: `gemini-2.5-flash`) | `.env` or Streamlit Secrets | `gemini-2.5-flash`                       |
+| `OPENROUTER_API_KEY` | Optional                         | Streamlit Secrets           | `sk-or-v1-...`                           |
+| `RCA_EMBED_MODEL`    | No                               | `.env`                      | `sentence-transformers/all-MiniLM-L6-v2` |
 
 **Note:** The engine works 100% without any LLM key (deterministic mode). Add a key if you want AI-powered narrative synthesis.
 
 ## What you get (Scenario 1, abridged)
+
 ```
 Root cause for TENANT-X: pool.ConnectionTimeoutException ... (com.service.db.DataSource, event 3252)
 - Precursor: x25 connection pool utilization > 90% (from 12:02:55)
@@ -154,11 +158,13 @@ Root cause for TENANT-X: pool.ConnectionTimeoutException ... (com.service.db.Dat
 ```
 
 ## Tests
+
 ```bash
 pytest -q          # 8 tests; both validation scenarios assert correctness with NO LLM key
 ```
 
 ## Layout
+
 ```
 src/rca/
   ingest/   reader · parser · drain_miner · normalize     # deterministic pipeline
@@ -171,6 +177,7 @@ data/       the two provided logs
 ```
 
 ## Configuration
+
 All runtime knobs are environment variables (see [.env.example](.env.example)); no key is ever
 hardcoded. Swap the model with `RCA_LLM_PROVIDER=gemini|openrouter|ollama`. Dependencies are
 pinned in [requirements.txt](requirements.txt).

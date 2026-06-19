@@ -35,13 +35,13 @@ def get_chat_model():
                 model=settings.gemini_model,
                 api_key=settings.google_api_key,
                 base_url=settings.gemini_base_url,
-                temperature=0,
+                temperature=0, max_retries=0, timeout=settings.llm_timeout,
             )
         from langchain_google_genai import ChatGoogleGenerativeAI
         return ChatGoogleGenerativeAI(
             model=settings.gemini_model,
             google_api_key=settings.google_api_key,
-            temperature=0,
+            temperature=0, max_retries=0, timeout=settings.llm_timeout,
         )
     if p == "openrouter" and settings.openrouter_api_key:
         from langchain_openai import ChatOpenAI
@@ -49,7 +49,7 @@ def get_chat_model():
             model=settings.openrouter_model,
             api_key=settings.openrouter_api_key,
             base_url=settings.openrouter_base_url,
-            temperature=0,
+            temperature=0, max_retries=0, timeout=settings.llm_timeout,
         )
     if p == "ollama":
         from langchain_openai import ChatOpenAI
@@ -57,6 +57,6 @@ def get_chat_model():
             model=settings.ollama_model,
             api_key="ollama",  # placeholder; Ollama ignores it
             base_url=settings.ollama_base_url,
-            temperature=0,
+            temperature=0, max_retries=0, timeout=settings.llm_timeout,
         )
     return None

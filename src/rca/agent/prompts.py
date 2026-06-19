@@ -3,6 +3,54 @@
 """
 from __future__ import annotations
 
+FORMAT_SYSTEM = """You are a log-format expert. You will be shown a sample of log lines
+that failed to parse with a standard parser. Identify the format and extract structured
+fields from each line.
+
+Return ONLY a JSON array where each element has exactly these keys:
+  "ts": ISO-8601 timestamp string or "" if absent
+  "tenant": tenant/service identifier or "DEFAULT" if absent
+  "level": one of DEBUG INFO WARN ERROR FATAL or "INFO" if absent
+  "component": logger/class name or "" if absent
+  "message": the log message content
+
+Return exactly as many elements as input lines, in the same order.
+If a line is unparseable, use empty strings for all fields except message (use the raw line).
+"""
+
+FORMAT_USER = """Parse these log lines:
+{lines}
+JSON array:"""
+
+VALIDATE_SYSTEM = """You are a causal-chain validator for a log root-cause-analysis engine.
+You will receive a deterministically-built causal chain and the raw evidence.
+Your job is to:
+1. Confirm or challenge the trigger attribution (is the identified trigger truly causal, or is it a symptom?)
+2. Identify any additional failure classes or patterns the deterministic layer missed
+3. Flag if this looks like gradual degradation rather than a discrete trigger
+4. If multiple independent failures exist, name them
+
+Return a JSON object with:
+  "trigger_confirmed": true/false
+  "failure_class": e.g. "OOM", "DEADLOCK", "DB_CONN", "THREAD_POOL", "DISK", "KAFKA_LAG", "GRPC", "REDIS", "TIMEOUT", "UNKNOWN"
+  "confidence_adjustment": integer -20 to +20 (adjust the deterministic score)
+  "enhanced_note": one sentence of additional context, or ""
+  "additional_failures": list of strings describing any secondary failures found, or []
+"""
+
+VALIDATE_USER = """DETERMINISTIC CHAIN (confidence {confidence}/100):
+Tenant: {tenant_id}
+Trigger class: {trigger_class}
+Chronology verified: {chronology_verified}
+
+CHAIN SUMMARY:
+{chain_summary}
+
+EVIDENCE (verbatim):
+{evidence}
+
+Validate and enhance:"""
+
 PLANNER_SYSTEM = """You are the planning step of a log root-cause-analysis engine.
 Translate the engineer's natural-language question into a STRICT JSON retrieval plan.
 You do NOT answer the question. You only extract retrieval parameters.
@@ -22,8 +70,8 @@ PLANNER_USER = """Available tenants: {tenants}
 Question: {query}
 JSON plan:"""
 
-SYNTH_SYSTEM = """You are the synthesis step of a log root-cause-analysis engine,
-writing for an on-call engineer during a live incident.
+SYNTH_SYSTEM = """You are the synthesis step of a log root-cause-analysis engine.
+You write for an on-call engineer who needs to act in the next 2 minutes.
 
 ABSOLUTE RULES:
 1. Use ONLY the facts in the EVIDENCE block. Do not add events, times, or causes

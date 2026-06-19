@@ -25,9 +25,11 @@ class TemplateVectorIndex:
         if self._collection is not None:
             return
         import chromadb
+        from chromadb.config import Settings as ChromaSettings
         from chromadb.utils import embedding_functions
 
-        self._client = chromadb.Client()  # in-memory; ephemeral per run
+        # in-memory, ephemeral per run; telemetry off (avoids noisy posthog errors)
+        self._client = chromadb.Client(ChromaSettings(anonymized_telemetry=False))
         ef = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name=settings.embed_model
         )

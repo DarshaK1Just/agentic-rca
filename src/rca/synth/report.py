@@ -82,8 +82,12 @@ def deterministic_narrative(chain: CausalChain) -> tuple[str, str]:
         parts.append(f"- Contributing: {c.message} (event {c.event_id}, x{c.occurrences})")
     if chain.trigger:
         t = chain.trigger
-        parts.append(f"- **Trigger (root cause):** {t.message} -- `{t.component}` "
-                     f"(event {t.event_id} @ {t.ts})")
+        fc = getattr(chain, "trigger_class", "")
+        conf = getattr(chain, "confidence", 0)
+        fc_label = f" [{fc}]" if fc and fc != "UNKNOWN" else ""
+        conf_label = f" (confidence {conf}/100)" if conf else ""
+        parts.append(f"- **Trigger (root cause){fc_label}:** {t.message} -- `{t.component}` "
+                     f"(event {t.event_id} @ {t.ts}){conf_label}")
         if t.stack_trace:
             parts.append(f"    - stack trace: `{t.stack_trace.splitlines()[0]}` ...")
     for tr in chain.transitions:

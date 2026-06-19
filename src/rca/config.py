@@ -34,6 +34,10 @@ class Settings:
     ollama_base_url: str = os.getenv("RCA_OLLAMA_BASE_URL", "http://localhost:11434/v1")
     ollama_model: str = os.getenv("RCA_OLLAMA_MODEL", "llama3.1")
 
+    # Fail fast on a slow/rate-limited LLM (seconds) so the engine reverts to its
+    # deterministic narrative quickly instead of retrying with long backoff.
+    llm_timeout: int = int(os.getenv("RCA_LLM_TIMEOUT", "20"))
+
     # --- Embeddings (local by default) --------------------------------------
     embed_model: str = os.getenv("RCA_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 

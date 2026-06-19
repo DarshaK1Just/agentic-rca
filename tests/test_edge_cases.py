@@ -14,6 +14,7 @@ AUTH = os.path.join(DATA, "auth_rate_limit_noise.log")
 @pytest.fixture(scope="session")
 def both_engine():
     engine, _ = build_engine([PROD, AUTH])
+    engine.chat_model = None  # deterministic-core tests
     return engine
 
 

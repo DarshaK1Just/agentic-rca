@@ -14,10 +14,12 @@ AUTH_LOG = os.path.join(DATA, "auth_rate_limit_noise.log")
 @pytest.fixture(scope="session")
 def prod_engine():
     engine, stats = build_engine([PROD_LOG])
+    engine.chat_model = None  # tests validate the deterministic core, not LLM prose
     return engine, stats
 
 
 @pytest.fixture(scope="session")
 def auth_engine():
     engine, stats = build_engine([AUTH_LOG])
+    engine.chat_model = None
     return engine, stats

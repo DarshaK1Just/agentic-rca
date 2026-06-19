@@ -107,13 +107,20 @@ section[data-testid="stSidebar"] .block-container{ padding-top:1.4rem; }
   text-transform:uppercase;margin:26px 0 10px; }
 [data-testid="stTextInput"] input{
   background:var(--surface) !important;border:1px solid var(--border2) !important;
-  border-radius:14px !important;color:var(--txt) !important;font-size:1.02rem !important;
+  border-radius:14px !important;font-size:1.02rem !important;
   padding:16px 18px !important;height:auto !important;
   box-shadow:0 2px 18px rgba(0,0,0,.25) inset; transition:border-color .2s, box-shadow .2s; }
 [data-testid="stTextInput"] input:focus{
   border-color:var(--indigo) !important;
   box-shadow:0 0 0 3px rgba(99,102,241,.25) !important; }
-[data-testid="stTextInput"] input::placeholder{ color:var(--faint) !important; }
+[data-testid="stTextInput"] input::placeholder{
+  color:var(--faint) !important; -webkit-text-fill-color:var(--faint) !important; opacity:1; }
+/* Force visible (light) text in EVERY input/textarea, all states. The default
+   -webkit-text-fill-color can render typed text near-black-on-dark = invisible. */
+input, textarea, .stTextInput input, [data-baseweb="input"] input,
+[data-baseweb="select"] input, section[data-testid="stSidebar"] input{
+  color:#E8ECF6 !important; -webkit-text-fill-color:#E8ECF6 !important;
+  caret-color:#22D3EE !important; }
 
 /* ---- buttons ---- */
 .stButton>button{
@@ -223,6 +230,31 @@ section[data-testid="stSidebar"] .block-container{ padding-top:1.4rem; }
   margin:8px 0 0;padding:9px 12px;background:#0C1322;border:1px solid var(--border);
   border-radius:9px;white-space:pre-wrap; }
 
+/* ---- back-button (compact, inline-link style) ---- */
+.back-btn button{ padding:5px 12px !important;font-size:.76rem !important;
+  border-radius:9px !important;font-weight:600 !important;height:auto !important;
+  line-height:1.3 !important;min-height:0 !important; }
+
+/* ---- upload area ---- */
+[data-testid="stFileUploader"]{ background:var(--surface);border:1px dashed var(--border2);
+  border-radius:13px;padding:10px 12px; }
+[data-testid="stFileUploader"] label{ color:var(--muted) !important;font-size:.8rem; }
+[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"]{
+  background:transparent !important;border:none !important; }
+[data-testid="stFileUploaderDropzoneInstructions"]{ color:var(--faint) !important; }
+
+/* ---- history items ---- */
+.hist-item{ display:flex;align-items:flex-start;justify-content:space-between;gap:8px;
+  padding:9px 11px;background:var(--surface);border:1px solid var(--border);
+  border-radius:11px;margin-bottom:7px;cursor:pointer;transition:border-color .18s; }
+.hist-item:hover{ border-color:var(--border2); }
+.hist-q{ font-size:.78rem;color:var(--txt);font-weight:500;line-height:1.4;
+  flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.hist-meta{ font-size:.66rem;color:var(--faint);margin-top:3px; }
+.hist-del{ font-size:.72rem;color:var(--faint);cursor:pointer;flex:0 0 auto;padding:2px 5px;
+  border-radius:5px;border:1px solid transparent; }
+.hist-del:hover{ color:#F43F5E;border-color:rgba(244,63,94,.3);background:rgba(244,63,94,.08); }
+
 /* ---- note / exclusion callout ---- */
 .note{ display:flex;gap:11px;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.25);
   border-radius:12px;padding:12px 15px;margin:8px 0;color:#FCD9A6;font-size:.86rem;line-height:1.5; }
@@ -305,10 +337,14 @@ def hero_html() -> str:
     )
 
 
-def status_html(live: bool, provider: str) -> str:
-    if live:
+def status_html(live: bool, provider: str, ai_on: bool) -> str:
+    if ai_on and live:
         return (f'<div class="status-row"><span class="dot live"></span>'
                 f'LLM synthesis &middot; <b>{esc(provider)}</b></div>')
+    if live:  # key configured, but AI narrative toggled off → fast deterministic
+        return ('<div class="status-row"><span class="dot" style="background:#22D3EE;'
+                'box-shadow:0 0 0 4px rgba(34,211,238,.16)"></span>'
+                'Fast mode &middot; AI narrative off</div>')
     return ('<div class="status-row"><span class="dot off"></span>'
             'Deterministic mode &middot; no LLM key</div>')
 
@@ -393,6 +429,22 @@ def evidence_html(level: str, citation: str, component: str, message: str, trace
         f'<span class="ev-comp">{esc(component)}</span></div>'
         f'<div class="ev-msg">{esc(message)}</div>{trace_h}'
         '</div>'
+    )
+
+
+def hist_item_html(query: str, tenant: str, outcome: str, ts: str) -> str:
+    """Sidebar history card — just the display markup; the Streamlit buttons sit below."""
+    color = "#F43F5E" if "root cause" in outcome.lower() else \
+            "#34D399" if "no failure" in outcome.lower() or "no warn" in outcome.lower() else \
+            "#64748B"
+    dot = f'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;' \
+          f'background:{color};margin-right:6px;vertical-align:middle"></span>'
+    q_short = query if len(query) <= 52 else query[:49] + "…"
+    return (
+        f'<div class="hist-item">'
+        f'<div><div class="hist-q">{dot}{esc(q_short)}</div>'
+        f'<div class="hist-meta">{esc(tenant or "?")} &middot; {esc(ts)}</div></div>'
+        f'</div>'
     )
 
 

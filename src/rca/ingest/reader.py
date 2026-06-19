@@ -17,8 +17,8 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
-# A new logical record always begins with an ISO-8601 timestamp at column 0.
-_RECORD_START = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
+# A new logical record starts with an ISO-8601 timestamp OR a JSON object at column 0.
+_RECORD_START = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|^\{.*\"message\"")
 
 
 @dataclass

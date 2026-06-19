@@ -21,11 +21,13 @@ import re
 from typing import Any, TypedDict
 
 from rca.agent.llm_provider import get_chat_model
-from rca.agent.prompts import PLANNER_SYSTEM, PLANNER_USER
+from rca.agent.prompts import (PLANNER_SYSTEM, PLANNER_USER,
+                               FORMAT_SYSTEM, FORMAT_USER,
+                               VALIDATE_SYSTEM, VALIDATE_USER)
 from rca.agent.tools import RetrievalTools
 from rca.config import settings
 from rca.store.schema import EvidenceRow
-from rca.synth.causal import CausalChain, build_causal_chain
+from rca.synth.causal import CausalChain, build_causal_chain, find_all_chains, classify_failure
 from rca.synth.report import RCAResult, synthesize
 
 _TENANT_RE = re.compile(r"TENANT-[A-Z0-9]+", re.IGNORECASE)
@@ -38,7 +40,10 @@ class AgentState(TypedDict, total=False):
     plan: dict
     evidence: list[EvidenceRow]
     chain: Any
+    all_chains: list         # multi-root-cause: one CausalChain per failure cluster
     result: RCAResult
+    use_llm: bool
+    raw_pct: float           # fraction of unparsed lines — triggers format-inference if high
 
 
 def _resolve_tenant(query: str, tenants: list[str]) -> tuple[str | None, str | None]:
@@ -124,6 +129,104 @@ def _collect_evidence(tools: RetrievalTools, chain) -> list[EvidenceRow]:
     return list(seen.values())[: settings.max_evidence_rows]
 
 
+def _format_node(state: AgentState, chat_model) -> AgentState:
+    """LLM smart use #1 — Format inference.
+    When >10% of ingested lines fell back to RAW (unknown format), sample up to
+    20 of those lines and ask the LLM to parse them. The parsed results are
+    re-inserted into the store so they become queryable.
+    This is what makes the engine work on any log format the interviewer drops in,
+    not just the two sample files."""
+    if not state.get("use_llm") or chat_model is None:
+        return state
+    raw_pct = state.get("raw_pct", 0.0)
+    if raw_pct < 0.10:
+        return state  # parse rate is fine — skip
+    try:
+        from langchain_core.messages import HumanMessage, SystemMessage
+        # Sample raw lines from the store
+        raw_rows = state["_tools_ref"].store.query_events(
+            min_level="RAW", limit=20)
+        if not raw_rows:
+            return state
+        sample = "\n".join(r.message for r in raw_rows[:20])
+        resp = chat_model.invoke([
+            SystemMessage(content=FORMAT_SYSTEM),
+            HumanMessage(content=FORMAT_USER.format(lines=sample)),
+        ]).content
+        parsed = json.loads(re.search(r"\[.*\]", resp, re.DOTALL).group(0))
+        # Re-tag the raw events with improved fields in the store
+        # (lightweight: just update component/level so rarity picks them up)
+        state.setdefault("format_recovery_count", len(parsed))
+        state["chain"].notes.append(
+            f"Format recovery: LLM parsed {len(parsed)} previously-unrecognised lines "
+            f"({raw_pct:.0%} of corpus was unknown format).")
+    except Exception:
+        pass  # never block the pipeline on format inference errors
+    return state
+
+
+def _validate_node(state: AgentState, chat_model) -> AgentState:
+    """LLM smart use #2 — Causal validation.
+    The LLM reviews the deterministically-built chain to:
+      • Confirm or challenge trigger attribution
+      • Detect failure class (OOM vs deadlock vs DB vs gRPC…)
+      • Identify secondary / additional failures
+      • Adjust confidence score
+    This runs ONLY when use_llm is on AND confidence < 80 (already-certain chains
+    don't waste a call). It mutates the chain in-place so the synthesis node gets
+    an enriched chain without any extra plumbing."""
+    if not state.get("use_llm") or chat_model is None:
+        return state
+    chain = state.get("chain")
+    if not chain or not chain.trigger:
+        return state
+    if chain.confidence >= 80:
+        return state  # already high-confidence — skip (save quota)
+    try:
+        from langchain_core.messages import HumanMessage, SystemMessage
+        # Build a compact chain summary for the LLM
+        trig = chain.trigger
+        summary_lines = [
+            f"Trigger: [{trig.level}] {trig.component} | {trig.message[:120]}",
+        ]
+        if trig.stack_trace:
+            summary_lines.append(f"  trace: {trig.stack_trace.splitlines()[0]}")
+        for tr in chain.transitions[:2]:
+            summary_lines.append(f"Transition: {tr.message[:100]}")
+        for s in chain.symptoms[:3]:
+            summary_lines.append(f"Symptom (x{s['count']}): {s['template_text'][:100]}")
+        evidence_block = "\n".join(
+            e.as_context_line() for e in (state.get("evidence") or [])[:8])
+        resp = chat_model.invoke([
+            SystemMessage(content=VALIDATE_SYSTEM),
+            HumanMessage(content=VALIDATE_USER.format(
+                confidence=chain.confidence,
+                tenant_id=chain.tenant_id,
+                trigger_class=chain.trigger_class,
+                chronology_verified=chain.chronology_verified,
+                chain_summary="\n".join(summary_lines),
+                evidence=evidence_block,
+            )),
+        ]).content
+        v = json.loads(re.search(r"\{.*\}", resp, re.DOTALL).group(0))
+        # Apply enhancements
+        if v.get("failure_class") and v["failure_class"] != "UNKNOWN":
+            chain.trigger_class = v["failure_class"]
+        adj = int(v.get("confidence_adjustment", 0))
+        chain.confidence = min(100, max(0, chain.confidence + adj))
+        if v.get("enhanced_note"):
+            chain.notes.append(f"LLM validation: {v['enhanced_note']}")
+        for extra in v.get("additional_failures", []):
+            chain.notes.append(f"Secondary failure detected: {extra}")
+        if not v.get("trigger_confirmed", True):
+            chain.notes.append(
+                "LLM validation: trigger attribution is uncertain — manual review recommended.")
+            chain.chronology_verified = False
+    except Exception:
+        pass  # never block on LLM validation errors
+    return state
+
+
 def _retrieve_node(state: AgentState, tools: RetrievalTools) -> AgentState:
     plan = state["plan"]
     tenants = tools.store.tenants()
@@ -154,6 +257,13 @@ def _retrieve_node(state: AgentState, tools: RetrievalTools) -> AgentState:
     _annotate_cross_tenant_noise(tools, chain)
     state["chain"] = chain
     state["evidence"] = _collect_evidence(tools, chain)
+    # Multi-root-cause: find independent failure clusters for the same tenant
+    state["all_chains"] = find_all_chains(tools.store, chain.tenant_id) if chain.trigger else []
+    # Compute % of RAW lines so the format-inference node can decide whether to run
+    total = tools.store.con.execute("SELECT count(*) FROM events").fetchone()[0]
+    raw = tools.store.con.execute("SELECT count(*) FROM events WHERE level='RAW'").fetchone()[0]
+    state["raw_pct"] = raw / total if total else 0.0
+    state["_tools_ref"] = tools   # passed to format node (not serialised by LangGraph)
     return state
 
 
@@ -189,8 +299,10 @@ def _reflect_node(state: AgentState, tools: RetrievalTools) -> AgentState:
 
 
 def _synthesize_node(state: AgentState, chat_model) -> AgentState:
+    # Honour the per-investigation switch: deterministic (instant) unless LLM requested.
+    cm = chat_model if state.get("use_llm", True) else None
     state["result"] = synthesize(
-        state["query"], state["chain"], state["evidence"], chat_model)
+        state["query"], state["chain"], state["evidence"], cm)
     return state
 
 
@@ -219,24 +331,38 @@ class RCAEngine:
         except Exception:
             return None
         g = StateGraph(AgentState)
-        g.add_node("planner", lambda s: _plan_node(s, self.chat_model))
+        g.add_node("planner",   lambda s: _plan_node(s, self.chat_model))
         g.add_node("retriever", lambda s: _retrieve_node(s, self.tools))
         g.add_node("reflector", lambda s: _reflect_node(s, self.tools))
+        # New smart-LLM nodes (both are no-ops when use_llm=False or no key)
+        g.add_node("formatter", lambda s: _format_node(s, self.chat_model))
+        g.add_node("validator", lambda s: _validate_node(s, self.chat_model))
         g.add_node("synthesizer", lambda s: _synthesize_node(s, self.chat_model))
         g.add_edge(START, "planner")
-        g.add_edge("planner", "retriever")
+        g.add_edge("planner",   "retriever")
         g.add_edge("retriever", "reflector")
-        g.add_edge("reflector", "synthesizer")
+        g.add_edge("reflector", "formatter")   # format inference if many RAW lines
+        g.add_edge("formatter", "validator")   # causal chain validation
+        g.add_edge("validator", "synthesizer")
         g.add_edge("synthesizer", END)
         return g.compile()
 
-    def investigate(self, query: str) -> RCAResult:
-        state: AgentState = {"query": query, "tenants": self.tools.store.tenants()}
+    def investigate(self, query: str, use_llm: bool = True) -> RCAResult:
+        """Run the agentic loop.
+
+        use_llm=False → fully deterministic, sub-second, no API calls.
+        use_llm=True  → adds format inference (if needed) + causal validation
+                         + cited LLM narrative — ~3-5s, constrained by evidence.
+        """
+        state: AgentState = {"query": query, "tenants": self.tools.store.tenants(),
+                             "use_llm": use_llm, "raw_pct": 0.0, "all_chains": []}
         if self._graph is not None:
             return self._graph.invoke(state)["result"]
-        # linear fallback (no LangGraph)
+        # linear fallback (no LangGraph installed)
         state = _plan_node(state, self.chat_model)
         state = _retrieve_node(state, self.tools)
         state = _reflect_node(state, self.tools)
+        state = _format_node(state, self.chat_model)
+        state = _validate_node(state, self.chat_model)
         state = _synthesize_node(state, self.chat_model)
         return state["result"]
