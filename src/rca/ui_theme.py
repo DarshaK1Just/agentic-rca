@@ -50,28 +50,27 @@ html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; }
     linear-gradient(180deg,#0A0E1A 0%,#0B1120 100%);
   color:var(--txt);
 }
-/* hide default chrome */
+/* hide default chrome — toolbar/decoration only, NOT the header element itself */
 #MainMenu, footer,
-[data-testid="stToolbar"], [data-testid="stDecoration"]{ display:none !important; }
-/* Collapse the header to zero height WITHOUT display:none — the sidebar expand
-   chevron lives inside this element, so display:none buries it permanently. */
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"]{ display:none !important; }
+/* Make the header invisible but keep it in the layout so Streamlit's own
+   sidebar collapse/expand buttons (which live inside it) remain functional. */
 header[data-testid="stHeader"]{
-  height:0 !important; min-height:0 !important;
-  padding:0 !important; background:transparent !important;
-  overflow:visible !important; border:none !important;
+  background:transparent !important;
+  border-bottom:none !important;
+  box-shadow:none !important;
 }
-/* Ensure sidebar expand/collapse buttons are always visible & clickable.
-   Cover both the legacy (collapsedControl) and current (stSidebarCollapsedControl)
-   test-ids used across Streamlit versions. */
+/* Hide only the inner toolbar content, not the sidebar toggle buttons */
+header[data-testid="stHeader"] > div:first-child{ visibility:hidden !important; }
+/* Sidebar collapse/expand buttons — don't override position; just keep visible */
 [data-testid="collapsedControl"],
-[data-testid="stSidebarCollapsedControl"]{
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stSidebarCollapseButton"]{
   display:flex !important; visibility:visible !important;
-  opacity:1 !important; z-index:1200 !important;
-  pointer-events:auto !important; position:fixed !important;
-  top:0.6rem !important; left:0.5rem !important;
+  opacity:1 !important; pointer-events:auto !important;
 }
-[data-testid="collapsedControl"] svg,
-[data-testid="stSidebarCollapsedControl"] svg{ fill:var(--muted) !important; }
 .block-container{ padding-top:2.2rem; padding-bottom:4rem; max-width:1180px; }
 
 /* ---- scrollbar ---- */
