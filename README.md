@@ -47,11 +47,101 @@ Set `PYTHONPATH=src` if you run without `pip install -e .`.
 
 ## Web UI
 
+### Local (Development)
+
+```bash
+streamlit run app
+```
+
+Or with the full path:
 ```bash
 streamlit run src/rca/webapp.py
 ```
+
 Shows the metrics, the deterministically-classified causal chain (timeline table), the
 narrative, and every piece of verbatim, line-addressable evidence.
+
+### Streamlit Cloud (Production Deployment)
+
+Deploy your RCA Engine to the world in 5 minutes:
+
+#### Step 1: Prepare Your Repository
+
+Ensure these files exist in your root directory (they're already created for you):
+- `app.py` ✓ — Entry point for Streamlit
+- `requirements.txt` ✓ — Python dependencies
+- `packages.txt` ✓ — System dependencies
+- `.streamlit/config.toml` ✓ — Streamlit configuration
+- `.env.example` ✓ — Environment template (DO NOT commit real keys)
+
+#### Step 2: Push to GitHub
+
+```bash
+git add app.py requirements.txt packages.txt .streamlit/ .env.example
+git commit -m "Prepare for Streamlit Cloud deployment"
+git push origin main
+```
+
+#### Step 3: Deploy on Streamlit Cloud
+
+1. **Create Streamlit Cloud account** (if you don't have one):
+   - Go to https://streamlit.io/cloud
+   - Sign in with GitHub
+   
+2. **Deploy your app**:
+   - Click "New app"
+   - Select your GitHub repo: `rca-engine`
+   - Branch: `main`
+   - Main file path: `app.py`
+   - Click "Deploy"
+
+3. **Streamlit will start the build** — this takes ~3-5 minutes
+   - Your app URL will be: `https://rca-engine-<hash>.streamlit.app`
+
+#### Step 4: Configure Secrets (Critical!)
+
+Your `.env` file should NEVER be committed to GitHub. Instead, use Streamlit Cloud's secret management:
+
+1. In your Streamlit Cloud app dashboard, click **Settings** (gear icon)
+2. Click **Secrets** in the left menu
+3. Copy the contents from `.streamlit/secrets.toml.example` (after filling in your real keys):
+   ```toml
+   RCA_LLM_PROVIDER = "gemini"
+   GOOGLE_API_KEY = "AIzaSy..."
+   RCA_GEMINI_MODEL = "gemini-2.5-flash"
+   ```
+4. Paste into the Streamlit Cloud secrets editor
+5. Click "Save"
+6. Streamlit will automatically reload your app with the new secrets
+
+**Where to get your Google API key:**
+- Go to https://aistudio.google.com/apikey
+- Click "Create API key"
+- Copy the key (starts with `AIza`)
+- Paste into Streamlit Cloud secrets as `GOOGLE_API_KEY`
+
+#### Step 5: Upload Sample Logs
+
+Once your app is live:
+1. Open your Streamlit Cloud app URL
+2. In the left sidebar, click "Upload logs"
+3. Drop your `.log` files (use the sample data from `data/` directory)
+4. The engine auto-detects the format and ingests immediately
+5. Start investigating!
+
+---
+
+### Environment Variables Quick Reference
+
+| Variable | Required? | Where to Set | Example |
+|----------|-----------|-------------|---------|
+| `RCA_LLM_PROVIDER` | No (default: `gemini`) | `.env` or Streamlit Secrets | `gemini`, `openrouter`, `ollama` |
+| `GOOGLE_API_KEY` | Optional | Streamlit Secrets | `AIzaSy...` |
+| `RCA_GEMINI_MODEL` | No (default: `gemini-2.5-flash`) | `.env` or Streamlit Secrets | `gemini-2.5-flash` |
+| `OPENROUTER_API_KEY` | Optional | Streamlit Secrets | `sk-or-v1-...` |
+| `RCA_EMBED_MODEL` | No | `.env` | `sentence-transformers/all-MiniLM-L6-v2` |
+
+**Note:** The engine works 100% without any LLM key (deterministic mode). Add a key if you want AI-powered narrative synthesis.
 
 ## What you get (Scenario 1, abridged)
 ```

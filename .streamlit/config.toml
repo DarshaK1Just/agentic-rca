@@ -1,7 +1,11 @@
-# Base theme — keeps un-styled widgets consistent with the custom CSS in webapp.py
+# ─────────────────────────────────────────────────────────────────────────────
+# Streamlit Configuration for RCA Engine
+# Optimized for both local and Streamlit Cloud deployments
+# ─────────────────────────────────────────────────────────────────────────────
+
 [theme]
 base = "dark"
-primaryColor = "#6366F1"
+primaryColor = "#F43F5E"
 backgroundColor = "#0A0E1A"
 secondaryBackgroundColor = "#121A2E"
 textColor = "#E8ECF6"
@@ -9,6 +13,16 @@ font = "sans serif"
 
 [server]
 headless = true
+maxUploadSize = 200
+enableXsrfProtection = true
+
+[client]
+showErrorDetails = false
+toolbarMode = "minimal"
+
+[logger]
+level = "error"
 
 [browser]
 gatherUsageStats = false
+serverAddress = "localhost"

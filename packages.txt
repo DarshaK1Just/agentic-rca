@@ -1,0 +1,3 @@
+# System dependencies for Streamlit Cloud deployment
+# DuckDB and chromadb may need these on Linux containers
+build-essential
