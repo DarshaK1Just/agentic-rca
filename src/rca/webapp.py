@@ -40,19 +40,24 @@ provider_label = ""
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 
+# (tag, color, title, description, query)
 SAMPLES = [
     ("Trigger extraction", "#F43F5E", "Chronological trigger extraction",
-     "Find the rare initiator beneath a flood of downstream 503 symptoms.",
+     "A single DB connection-timeout sits beneath 237 downstream 503s — find the "
+     "initiator, not the flood.",
      "What caused the 503 errors for TENANT-X around 16:10?"),
     ("Noise demux", "#FB923C", "High-volume noise demultiplexing",
-     "Surface a quiet anomaly buried under another tenant's volumetric flood.",
+     "TENANT-Z's lone token-validation timeout is buried under TENANT-Y's 1,799-line "
+     "rate-limit flood.",
      "Identify any system failures impacting TENANT-Z during the authentication volume spike."),
-    ("Triage", "#22D3EE", "Unscoped triage",
-     "No tenant named — the engine surfaces the most severe active incident.",
-     "Which tenant is currently experiencing an outage?"),
-    ("Health check", "#34D399", "Healthy-tenant check",
-     "Confirms a tenant is clean without inventing a failure.",
-     "Are there any failures affecting TENANT-A?"),
+    ("Cross-tenant triage", "#22D3EE", "Unscoped incident triage",
+     "Alerts firing across nine tenants, none named — surface the one genuine outage "
+     "and tell the on-call who to page.",
+     "We're seeing alerts across multiple tenants — which one is actually down and needs paging?"),
+    ("Noise vs fault", "#34D399", "Loudest-tenant red herring",
+     "TENANT-Y is the loudest tenant by far, but volume isn't a fault — confirm whether "
+     "it's the incident source or just rate-limited clients.",
+     "TENANT-Y is throwing thousands of errors — is it the source of the incident or just a side effect?"),
 ]
 
 st.session_state.setdefault("q", SAMPLES[0][4])
