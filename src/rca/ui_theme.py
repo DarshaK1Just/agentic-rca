@@ -62,13 +62,37 @@ header[data-testid="stHeader"]{
   border-bottom:none !important;
   box-shadow:none !important;
 }
-/* Belt-and-suspenders: keep every sidebar collapse/expand control visible &
-   clickable across all Streamlit versions (test-id changed over releases). */
+/* ---- sidebar expand button (shown when sidebar is collapsed) ----
+   Covers every test-id Streamlit has used across releases. We pin it to the
+   top-left as a clearly visible, clickable chip so the sidebar can ALWAYS be
+   re-opened after it's collapsed. */
 [data-testid="collapsedControl"],
 [data-testid="stSidebarCollapsedControl"],
-[data-testid="stSidebarCollapseButton"],
-[data-testid="stSidebarNav"] button,
-button[kind="header"]{
+[data-testid="stExpandSidebarButton"]{
+  display:flex !important; visibility:visible !important;
+  opacity:1 !important; pointer-events:auto !important;
+  position:fixed !important; top:.7rem !important; left:.7rem !important;
+  z-index:1000000 !important;
+  background:var(--surface) !important;
+  border:1px solid var(--border2) !important;
+  border-radius:10px !important; padding:6px !important;
+  box-shadow:0 6px 18px rgba(0,0,0,.4) !important;
+}
+[data-testid="collapsedControl"]:hover,
+[data-testid="stSidebarCollapsedControl"]:hover,
+[data-testid="stExpandSidebarButton"]:hover{
+  border-color:var(--indigo) !important; background:var(--surface2) !important;
+}
+/* make the chevron icon clearly visible (was dark-on-dark) */
+[data-testid="collapsedControl"] svg,
+[data-testid="stSidebarCollapsedControl"] svg,
+[data-testid="stExpandSidebarButton"] svg,
+[data-testid="stSidebarCollapseButton"] svg{
+  fill:#E8ECF6 !important; color:#E8ECF6 !important;
+  width:22px !important; height:22px !important;
+}
+/* keep the in-sidebar collapse («) button visible & clickable too */
+[data-testid="stSidebarCollapseButton"]{
   display:flex !important; visibility:visible !important;
   opacity:1 !important; pointer-events:auto !important;
 }

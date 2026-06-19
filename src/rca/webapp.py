@@ -369,13 +369,34 @@ def view_result(chosen, use_vectors, use_llm):
                 unsafe_allow_html=True)
         else:
             msg = "Analysing with Gemini…" if use_llm and live else "Investigating…"
-            with st.spinner(msg):
-                try:
-                    _run_and_store(pending, chosen, use_vectors, use_llm)
-                except Exception as e:
-                    st.error(f"Investigation failed: {e}\n\nTry refreshing the page or "
-                             f"removing the corpus and re-adding it.")
-                    st.stop()
+            sub = ("Isolating the low-frequency trigger from the symptom flood "
+                   "and writing a cited explanation.")
+            # Full-viewport OPAQUE overlay — covers the previous (dimmed) frame so
+            # the home/scenario cards can't bleed through during the long query.
+            overlay = st.empty()
+            overlay.markdown(
+                f"""
+                <div style="position:fixed;inset:0;z-index:999999;
+                    background:linear-gradient(180deg,#0A0E1A 0%,#0B1120 100%);
+                    display:flex;flex-direction:column;align-items:center;
+                    justify-content:center;gap:1.4rem;text-align:center">
+                  <div style="font-size:2.6rem;animation:spin 1.1s linear infinite;
+                              display:inline-block">⚙️</div>
+                  <div style="font-size:1.3rem;font-weight:700;color:#E8ECF6">{ui.esc(msg)}</div>
+                  <div style="font-size:.92rem;color:#8A97B2;max-width:380px">{ui.esc(sub)}</div>
+                </div>
+                <style>@keyframes spin{{from{{transform:rotate(0)}}to{{transform:rotate(360deg)}}}}</style>
+                """,
+                unsafe_allow_html=True,
+            )
+            try:
+                _run_and_store(pending, chosen, use_vectors, use_llm)
+            except Exception as e:
+                overlay.empty()
+                st.error(f"Investigation failed: {e}\n\nTry refreshing the page or "
+                         f"removing the corpus and re-adding it.")
+                st.stop()
+            overlay.empty()
 
     stored = st.session_state.get("result")
     if stored:
