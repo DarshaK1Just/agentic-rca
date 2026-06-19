@@ -13,15 +13,6 @@ import os
 import sys
 from pathlib import Path
 
-# ── 0. Evict any stale/poisoned rca.* entries from sys.modules ───────────────
-# Python 3.14 is stricter about sys.modules cleanup on failed imports: when an
-# import crashes mid-way, parent packages (rca.synth, rca.agent, …) are removed
-# from sys.modules.  On the next Streamlit hot-reload the import machinery looks
-# them up by key and raises KeyError instead of re-importing cleanly.
-# Wiping all rca.* entries before each run guarantees a fresh import graph.
-for _key in [k for k in sys.modules if k == "rca" or k.startswith("rca.")]:
-    del sys.modules[_key]
-
 import streamlit as st
 
 # ── 1. Resolve project root and make src.* importable ────────────────────────
@@ -44,7 +35,40 @@ try:
 except Exception:
     pass  # no secrets configured — local dev mode, .env file handles credentials
 
-# ── 3. Run the Streamlit frontend in-process ──────────────────────────────────
+
+# ── 3. Robustly (re)import the rca package graph ──────────────────────────────
+# On Streamlit hot-reloads under Python 3.14, the import graph can be left
+# half-torn-down (a child module is removed from sys.modules while its parent
+# is mid-import), which surfaces as `KeyError: 'rca.ingest.normalize'` and the
+# like. We evict any stale rca.* entries and (re)import the whole graph HERE,
+# retrying on that KeyError with a fresh eviction each time. Doing this before
+# the exec() below means webapp.py's `from rca... import` calls hit a clean,
+# fully-populated cache — and st.set_page_config (inside webapp.py) is never
+# executed twice.
+def _evict_rca() -> None:
+    for _key in [k for k in sys.modules if k == "rca" or k.startswith("rca.")]:
+        del sys.modules[_key]
+
+
+def _import_graph() -> None:
+    import rca.config            # noqa: F401
+    import rca.ui_theme          # noqa: F401
+    import rca.agent.llm_provider  # noqa: F401
+    import rca.pipeline          # noqa: F401  (pulls in the full engine graph)
+
+
+_evict_rca()
+for _attempt in range(4):
+    try:
+        _import_graph()
+        break
+    except KeyError:
+        _evict_rca()  # poisoned graph — wipe and retry with a clean slate
+else:
+    _evict_rca()      # final clean attempt; let any real error surface
+    _import_graph()
+
+# ── 4. Run the Streamlit frontend in-process ──────────────────────────────────
 # Override __file__ so path calculations inside webapp.py resolve correctly.
 _webapp = _SRC / "rca" / "webapp.py"
 _g = globals().copy()
