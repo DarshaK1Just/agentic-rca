@@ -11,7 +11,6 @@ We yield (line_no, header_text, stack_trace) tuples and never load the whole fil
 into memory — this is an O(n) single streaming pass, the foundation of the
 "deterministic-first" cost story.
 """
-from __future__ import annotations
 
 import re
 from collections.abc import Iterator

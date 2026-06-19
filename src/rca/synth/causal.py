@@ -22,7 +22,6 @@ Two new capabilities vs v1:
      verification, rarity contrast between trigger and symptoms, and stack-trace
      presence. The LLM validation node uses this to decide whether to enhance.
 """
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 

@@ -8,7 +8,6 @@ Narrative generation has two paths:
 Either way the FACTS come from the deterministic chain, so output is never
 hallucinated; the LLM only improves readability.
 """
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 

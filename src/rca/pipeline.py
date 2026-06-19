@@ -3,7 +3,6 @@
 Shared by the CLI and the Streamlit UI so both exercise the identical path:
     ingest (deterministic) → load DuckDB → [optional] build vector index → RCAEngine
 """
-from __future__ import annotations
 
 import time
 from dataclasses import dataclass

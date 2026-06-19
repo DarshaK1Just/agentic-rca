@@ -6,7 +6,6 @@ are exact and auditable.
 These same functions are callable directly by the deterministic planner (no LLM),
 which is what lets the engine run end-to-end with zero API key.
 """
-from __future__ import annotations
 
 from dataclasses import dataclass
 

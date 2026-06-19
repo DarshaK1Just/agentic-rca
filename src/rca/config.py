@@ -4,7 +4,6 @@ Nothing here hardcodes a credential. `.env` is loaded once, lazily, so importing
 this module never fails on a machine that has not configured keys yet (e.g. the
 deterministic ingestion path and unit tests run with no LLM key at all).
 """
-from __future__ import annotations
 
 import os
 from dataclasses import dataclass
