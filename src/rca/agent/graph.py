@@ -323,7 +323,25 @@ class RCAEngine:
     def __init__(self, tools: RetrievalTools) -> None:
         self.tools = tools
         self.chat_model = get_chat_model()
+        self._on_step = None          # optional per-investigation progress callback
         self._graph = self._build_graph()
+
+    def _emit(self, step: str) -> None:
+        """Fire the progress callback (if any) at the START of a node. Errors in the
+        callback never break the pipeline."""
+        cb = self._on_step
+        if cb is not None:
+            try:
+                cb(step)
+            except Exception:
+                pass
+
+    def _wrap(self, name: str, fn):
+        """Wrap a node so it emits its name before running."""
+        def node(state):
+            self._emit(name)
+            return fn(state)
+        return node
 
     def _build_graph(self):
         try:
@@ -331,13 +349,13 @@ class RCAEngine:
         except Exception:
             return None
         g = StateGraph(AgentState)
-        g.add_node("planner",   lambda s: _plan_node(s, self.chat_model))
-        g.add_node("retriever", lambda s: _retrieve_node(s, self.tools))
-        g.add_node("reflector", lambda s: _reflect_node(s, self.tools))
+        g.add_node("planner",   self._wrap("planner",   lambda s: _plan_node(s, self.chat_model)))
+        g.add_node("retriever", self._wrap("retriever", lambda s: _retrieve_node(s, self.tools)))
+        g.add_node("reflector", self._wrap("reflector", lambda s: _reflect_node(s, self.tools)))
         # New smart-LLM nodes (both are no-ops when use_llm=False or no key)
-        g.add_node("formatter", lambda s: _format_node(s, self.chat_model))
-        g.add_node("validator", lambda s: _validate_node(s, self.chat_model))
-        g.add_node("synthesizer", lambda s: _synthesize_node(s, self.chat_model))
+        g.add_node("formatter", self._wrap("formatter", lambda s: _format_node(s, self.chat_model)))
+        g.add_node("validator", self._wrap("validator", lambda s: _validate_node(s, self.chat_model)))
+        g.add_node("synthesizer", self._wrap("synthesizer", lambda s: _synthesize_node(s, self.chat_model)))
         g.add_edge(START, "planner")
         g.add_edge("planner",   "retriever")
         g.add_edge("retriever", "reflector")
@@ -347,22 +365,30 @@ class RCAEngine:
         g.add_edge("synthesizer", END)
         return g.compile()
 
-    def investigate(self, query: str, use_llm: bool = True) -> RCAResult:
+    def investigate(self, query: str, use_llm: bool = True, on_step=None) -> RCAResult:
         """Run the agentic loop.
 
         use_llm=False → fully deterministic, sub-second, no API calls.
         use_llm=True  → adds format inference (if needed) + causal validation
                          + cited LLM narrative — ~3-5s, constrained by evidence.
+
+        on_step(step_name) — optional callback fired at the start of each node so a
+        UI can show live progress. Step names: planner, retriever, reflector,
+        formatter, validator, synthesizer.
         """
-        state: AgentState = {"query": query, "tenants": self.tools.store.tenants(),
-                             "use_llm": use_llm, "raw_pct": 0.0, "all_chains": []}
-        if self._graph is not None:
-            return self._graph.invoke(state)["result"]
-        # linear fallback (no LangGraph installed)
-        state = _plan_node(state, self.chat_model)
-        state = _retrieve_node(state, self.tools)
-        state = _reflect_node(state, self.tools)
-        state = _format_node(state, self.chat_model)
-        state = _validate_node(state, self.chat_model)
-        state = _synthesize_node(state, self.chat_model)
-        return state["result"]
+        self._on_step = on_step
+        try:
+            state: AgentState = {"query": query, "tenants": self.tools.store.tenants(),
+                                 "use_llm": use_llm, "raw_pct": 0.0, "all_chains": []}
+            if self._graph is not None:
+                return self._graph.invoke(state)["result"]
+            # linear fallback (no LangGraph installed)
+            self._emit("planner");     state = _plan_node(state, self.chat_model)
+            self._emit("retriever");   state = _retrieve_node(state, self.tools)
+            self._emit("reflector");   state = _reflect_node(state, self.tools)
+            self._emit("formatter");   state = _format_node(state, self.chat_model)
+            self._emit("validator");   state = _validate_node(state, self.chat_model)
+            self._emit("synthesizer"); state = _synthesize_node(state, self.chat_model)
+            return state["result"]
+        finally:
+            self._on_step = None

@@ -303,6 +303,31 @@ input, textarea, .stTextInput input, [data-baseweb="input"] input,
   border-radius:12px;padding:12px 15px;margin:8px 0;color:#FCD9A6;font-size:.86rem;line-height:1.5; }
 .note .ni{ color:#F59E0B;font-weight:800;flex:0 0 auto; }
 
+/* ---- investigation progress (live steps) ---- */
+.invq{ min-height:90vh; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:22px; text-align:center;
+  background:linear-gradient(180deg,#0A0E1A 0%,#0B1120 100%); }
+.invq .gear{ font-size:2.4rem; animation:spin 1.1s linear infinite; display:inline-block; }
+.invq h3{ font-size:1.3rem; font-weight:800; color:#fff; margin:0; letter-spacing:-.01em; }
+.invq .steps{ display:flex; flex-direction:column; gap:11px; text-align:left;
+  width:min(440px,86%); margin-top:4px; }
+.invq .step-row{ display:flex; align-items:center; gap:13px; padding:11px 15px;
+  border-radius:12px; border:1px solid var(--border); background:var(--surface);
+  transition:border-color .25s, background .25s; }
+.invq .step-row.active{ border-color:var(--indigo);
+  background:linear-gradient(135deg,rgba(99,102,241,.14),rgba(34,211,238,.06)); }
+.invq .step-row.done{ opacity:.72; }
+.invq .step-row.todo{ opacity:.4; }
+.invq .si{ width:24px;height:24px;border-radius:50%;flex:0 0 auto;display:flex;
+  align-items:center;justify-content:center;font-size:.78rem;font-weight:800; }
+.invq .si.done{ background:rgba(52,211,153,.18);color:#34D399;border:1px solid rgba(52,211,153,.4); }
+.invq .si.active{ background:transparent;border:2.5px solid var(--indigo);
+  border-right-color:transparent;animation:spin .9s linear infinite; }
+.invq .si.todo{ background:var(--surface2);color:var(--faint);border:1px solid var(--border2); }
+.invq .st{ font-size:.92rem;font-weight:600;color:var(--txt);line-height:1.35; }
+.invq .step-row.todo .st{ color:var(--muted); }
+@keyframes spin{ from{transform:rotate(0)} to{transform:rotate(360deg)} }
+
 /* ---- empty state ---- */
 .empty{ text-align:center;padding:54px 20px;color:var(--muted); }
 .empty .ring{ width:74px;height:74px;border-radius:50%;margin:0 auto 18px;
@@ -493,6 +518,40 @@ def hist_item_html(query: str, tenant: str, outcome: str, ts: str) -> str:
 
 def note_html(text: str) -> str:
     return f'<div class="note"><span class="ni">!</span><span>{esc(text)}</span></div>'
+
+
+# ── live investigation progress ───────────────────────────────────────────────
+# Ordered pipeline steps surfaced to the user (maps 1:1 to RCAEngine node names).
+INVESTIGATION_STEPS = [
+    ("planner",     "Parsing the question &amp; planning retrieval"),
+    ("retriever",   "Scanning logs · isolating rare anomalies · ordering causally"),
+    ("reflector",   "Demultiplexing cross-tenant noise"),
+    ("formatter",   "Recovering any unrecognised log formats"),
+    ("validator",   "Validating the causal chain"),
+    ("synthesizer", "Writing the cited explanation"),
+]
+
+
+def investigation_html(active_key: str | None, title: str = "Analysing…") -> str:
+    """Full-content live-progress panel. `active_key` is the node currently running;
+    everything before it is marked done, everything after is pending. When active_key
+    is None nothing is started yet (all pending)."""
+    keys = [k for k, _ in INVESTIGATION_STEPS]
+    active_idx = keys.index(active_key) if active_key in keys else -1
+    rows = ""
+    for i, (_key, label) in enumerate(INVESTIGATION_STEPS):
+        if i < active_idx:
+            state, icon_cls, icon = "done", "done", "✓"
+        elif i == active_idx:
+            state, icon_cls, icon = "active", "active", ""
+        else:
+            state, icon_cls, icon = "todo", "todo", str(i + 1)
+        rows += (f'<div class="step-row {state}">'
+                 f'<span class="si {icon_cls}">{icon}</span>'
+                 f'<span class="st">{label}</span></div>')
+    return (f'<div class="invq"><div class="gear">⚙️</div>'
+            f'<h3>{esc(title)}</h3>'
+            f'<div class="steps">{rows}</div></div>')
 
 
 # ── overview / home components ───────────────────────────────────────────────

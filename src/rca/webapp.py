@@ -70,7 +70,8 @@ def _engine_for(files_key: tuple, with_vectors: bool):
     return build_engine(list(files_key), with_vectors=with_vectors)
 
 
-def _run_investigation(query: str, chosen: list, with_vectors: bool, use_llm: bool):
+def _run_investigation(query: str, chosen: list, with_vectors: bool, use_llm: bool,
+                       on_step=None):
     """Run query via the engine. Results are stored in session-state (not pickle-cached)
     to avoid the UnserializableReturnValueError — RCAResult holds a DuckDB connection."""
     cache_key = f"{query}|{','.join(chosen)}|{with_vectors}|{use_llm}|{settings.provider}"
@@ -78,15 +79,16 @@ def _run_investigation(query: str, chosen: list, with_vectors: bool, use_llm: bo
         return st.session_state["result_cache"][cache_key]
 
     engine, stats = _engine_for(tuple(chosen), with_vectors)
-    res = engine.investigate(query, use_llm=use_llm)
+    res = engine.investigate(query, use_llm=use_llm, on_step=on_step)
 
     entry = {"res": res, "stats": stats}
     st.session_state["result_cache"][cache_key] = entry
     return entry
 
 
-def _run_and_store(query: str, chosen: list, with_vectors: bool, use_llm: bool):
-    entry = _run_investigation(query, chosen, with_vectors, use_llm)
+def _run_and_store(query: str, chosen: list, with_vectors: bool, use_llm: bool,
+                   on_step=None):
+    entry = _run_investigation(query, chosen, with_vectors, use_llm, on_step=on_step)
     res, stats = entry["res"], entry["stats"]
     st.session_state["result"] = {"q": query, "res": res, "stats": stats}
 
@@ -345,7 +347,28 @@ def view_home():
 
 # ─────────────────────────────── RESULT view ────────────────────────────────
 def view_result(chosen, use_vectors, use_llm):
-    # Compact topbar
+    pending = st.session_state.pop("pending", None)
+
+    # ── Loading state: show ONLY the live-steps panel (hide topbar/question/button)
+    # so the whole content area is a clean, opaque progress screen with no bleed. ──
+    if pending and chosen:
+        title = "Analysing with Gemini…" if use_llm and live else "Investigating…"
+        panel = st.empty()
+        panel.markdown(ui.investigation_html(None, title), unsafe_allow_html=True)
+
+        def _on_step(step: str) -> None:
+            panel.markdown(ui.investigation_html(step, title), unsafe_allow_html=True)
+
+        try:
+            _run_and_store(pending, chosen, use_vectors, use_llm, on_step=_on_step)
+        except Exception as e:
+            panel.empty()
+            st.error(f"Investigation failed: {e}\n\nTry refreshing the page or "
+                     f"removing the corpus and re-adding it.")
+            st.stop()
+        panel.empty()  # clear the loader; results render below
+
+    # ── Normal view (also the post-loading frame): topbar + question + results ──
     tc1, tc2 = st.columns([0.18, 0.82])
     with tc1:
         st.markdown('<div class="back-btn">', unsafe_allow_html=True)
@@ -361,43 +384,10 @@ def view_result(chosen, use_vectors, use_llm):
     c1, _ = st.columns([0.26, 0.74])
     c1.button("Investigate", type="primary", on_click=_investigate, use_container_width=True)
 
-    pending = st.session_state.pop("pending", None)
-    if pending:
-        if not chosen:
-            st.markdown(ui.note_html(
-                "No log files selected. Pick at least one in the Corpus section of the sidebar."),
-                unsafe_allow_html=True)
-        else:
-            msg = "Analysing with Gemini…" if use_llm and live else "Investigating…"
-            sub = ("Isolating the low-frequency trigger from the symptom flood "
-                   "and writing a cited explanation.")
-            # Opaque, content-column loader that FILLS the main area (tall min-height
-            # + solid background). This covers the dimmed previous-frame snapshot so
-            # the home/scenario cards can't bleed through — while leaving the sidebar
-            # fully visible (it's a normal-flow block, not a full-viewport overlay).
-            loader = st.empty()
-            loader.markdown(
-                f"""
-                <div style="min-height:80vh;display:flex;flex-direction:column;
-                    align-items:center;justify-content:center;gap:1.4rem;text-align:center;
-                    background:linear-gradient(180deg,#0A0E1A 0%,#0B1120 100%)">
-                  <div style="font-size:2.6rem;animation:spin 1.1s linear infinite;
-                              display:inline-block">⚙️</div>
-                  <div style="font-size:1.3rem;font-weight:700;color:#E8ECF6">{ui.esc(msg)}</div>
-                  <div style="font-size:.92rem;color:#8A97B2;max-width:380px">{ui.esc(sub)}</div>
-                </div>
-                <style>@keyframes spin{{from{{transform:rotate(0)}}to{{transform:rotate(360deg)}}}}</style>
-                """,
-                unsafe_allow_html=True,
-            )
-            try:
-                _run_and_store(pending, chosen, use_vectors, use_llm)
-            except Exception as e:
-                loader.empty()
-                st.error(f"Investigation failed: {e}\n\nTry refreshing the page or "
-                         f"removing the corpus and re-adding it.")
-                st.stop()
-            loader.empty()
+    if pending and not chosen:
+        st.markdown(ui.note_html(
+            "No log files selected. Pick at least one in the Corpus section of the sidebar."),
+            unsafe_allow_html=True)
 
     stored = st.session_state.get("result")
     if stored:
