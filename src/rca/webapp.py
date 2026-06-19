@@ -371,15 +371,16 @@ def view_result(chosen, use_vectors, use_llm):
             msg = "Analysing with Gemini…" if use_llm and live else "Investigating…"
             sub = ("Isolating the low-frequency trigger from the symptom flood "
                    "and writing a cited explanation.")
-            # Full-viewport OPAQUE overlay — covers the previous (dimmed) frame so
-            # the home/scenario cards can't bleed through during the long query.
-            overlay = st.empty()
-            overlay.markdown(
+            # Opaque, content-column loader that FILLS the main area (tall min-height
+            # + solid background). This covers the dimmed previous-frame snapshot so
+            # the home/scenario cards can't bleed through — while leaving the sidebar
+            # fully visible (it's a normal-flow block, not a full-viewport overlay).
+            loader = st.empty()
+            loader.markdown(
                 f"""
-                <div style="position:fixed;inset:0;z-index:999999;
-                    background:linear-gradient(180deg,#0A0E1A 0%,#0B1120 100%);
-                    display:flex;flex-direction:column;align-items:center;
-                    justify-content:center;gap:1.4rem;text-align:center">
+                <div style="min-height:80vh;display:flex;flex-direction:column;
+                    align-items:center;justify-content:center;gap:1.4rem;text-align:center;
+                    background:linear-gradient(180deg,#0A0E1A 0%,#0B1120 100%)">
                   <div style="font-size:2.6rem;animation:spin 1.1s linear infinite;
                               display:inline-block">⚙️</div>
                   <div style="font-size:1.3rem;font-weight:700;color:#E8ECF6">{ui.esc(msg)}</div>
@@ -392,11 +393,11 @@ def view_result(chosen, use_vectors, use_llm):
             try:
                 _run_and_store(pending, chosen, use_vectors, use_llm)
             except Exception as e:
-                overlay.empty()
+                loader.empty()
                 st.error(f"Investigation failed: {e}\n\nTry refreshing the page or "
                          f"removing the corpus and re-adding it.")
                 st.stop()
-            overlay.empty()
+            loader.empty()
 
     stored = st.session_state.get("result")
     if stored:
