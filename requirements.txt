@@ -1,20 +1,21 @@
-# ── RCA Engine dependencies (pinned, lightweight, mostly local) ──────────────
+# ── RCA Engine dependencies ───────────────────────────────────────────────────
+# Pins relaxed to >= so Streamlit Cloud (Python 3.14+) can resolve wheels.
 # Deterministic ingestion / storage layer
-drain3==0.9.11                 # streaming log-template miner (logpai)
-duckdb==1.1.3                  # embedded columnar OLAP store (structural filtering)
-pydantic==2.9.2                # typed event + tool-IO schema
+drain3>=0.9.11                 # streaming log-template miner (logpai)
+duckdb>=1.2.0                  # embedded columnar OLAP store (structural filtering)
+pydantic>=2.9.2                # typed event + tool-IO schema
 
 # Semantic layer (local, free)
-chromadb==0.5.23               # local vector store over the template catalog
-sentence-transformers==3.3.1   # all-MiniLM-L6-v2 embeddings (CPU, offline)
+chromadb>=0.6.0                # local vector store over the template catalog
+sentence-transformers>=3.4.0   # all-MiniLM-L6-v2 embeddings (CPU, offline)
 
 # Agentic orchestration
-langgraph==0.2.50              # stateful agent state machine (plan→retrieve→reflect→synthesize)
-langchain-core==0.3.21         # tool / message abstractions
-langchain-google-genai==2.0.5  # Gemini (Google AI Studio) provider — primary
-langchain-openai==0.2.10       # OpenRouter / OpenAI-compatible fallback provider
+langgraph>=0.3.0               # stateful agent state machine (plan→retrieve→reflect→synthesize)
+langchain-core>=0.3.21         # tool / message abstractions
+langchain-google-genai>=2.1.0  # Gemini (Google AI Studio) provider — primary
+langchain-openai>=0.3.0        # OpenRouter / OpenAI-compatible fallback provider
 
 # Interface + config
-typer==0.13.1                  # CLI
-streamlit==1.40.2              # minimal web UI
-python-dotenv==1.0.1           # .env loader (BYOK)
+typer>=0.13.1                  # CLI
+streamlit>=1.41.0              # minimal web UI
+python-dotenv>=1.0.1           # .env loader (BYOK)
