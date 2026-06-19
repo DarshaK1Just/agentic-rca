@@ -50,24 +50,25 @@ html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; }
     linear-gradient(180deg,#0A0E1A 0%,#0B1120 100%);
   color:var(--txt);
 }
-/* hide default chrome — toolbar/decoration only, NOT the header element itself */
+/* hide default chrome — ONLY the menu/footer/toolbar items, never the header
+   element or its sidebar toggle buttons. The header stays fully functional;
+   it's just a thin transparent bar at the top. */
 #MainMenu, footer,
 [data-testid="stToolbar"],
 [data-testid="stDecoration"],
 [data-testid="stStatusWidget"]{ display:none !important; }
-/* Make the header invisible but keep it in the layout so Streamlit's own
-   sidebar collapse/expand buttons (which live inside it) remain functional. */
 header[data-testid="stHeader"]{
   background:transparent !important;
   border-bottom:none !important;
   box-shadow:none !important;
 }
-/* Hide only the inner toolbar content, not the sidebar toggle buttons */
-header[data-testid="stHeader"] > div:first-child{ visibility:hidden !important; }
-/* Sidebar collapse/expand buttons — don't override position; just keep visible */
+/* Belt-and-suspenders: keep every sidebar collapse/expand control visible &
+   clickable across all Streamlit versions (test-id changed over releases). */
 [data-testid="collapsedControl"],
 [data-testid="stSidebarCollapsedControl"],
-[data-testid="stSidebarCollapseButton"]{
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarNav"] button,
+button[kind="header"]{
   display:flex !important; visibility:visible !important;
   opacity:1 !important; pointer-events:auto !important;
 }
