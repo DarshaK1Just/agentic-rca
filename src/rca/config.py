@@ -9,9 +9,13 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from dotenv import load_dotenv
-
-load_dotenv()  # no-op if .env is absent
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # no-op if .env is absent
+except ImportError:
+    # On Streamlit Cloud or other environments without python-dotenv,
+    # environment variables are already set via the platform
+    pass
 
 
 @dataclass(frozen=True)
