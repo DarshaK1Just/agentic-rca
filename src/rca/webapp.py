@@ -29,6 +29,10 @@ from rca import ui_theme as ui
 st.set_page_config(page_title="RCA Engine — Log Intelligence Console", layout="wide")
 st.markdown(ui.CSS, unsafe_allow_html=True)
 
+# Safe defaults — overwritten in sidebar once llm_available() is resolved
+live = False
+provider_label = ""
+
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 
