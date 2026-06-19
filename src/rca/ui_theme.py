@@ -50,16 +50,28 @@ html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; }
     linear-gradient(180deg,#0A0E1A 0%,#0B1120 100%);
   color:var(--txt);
 }
-/* hide default chrome — keep sidebar toggle visible */
-#MainMenu, footer, header[data-testid="stHeader"],
+/* hide default chrome */
+#MainMenu, footer,
 [data-testid="stToolbar"], [data-testid="stDecoration"]{ display:none !important; }
-/* ensure the collapsed-sidebar re-expand chevron is always reachable */
-[data-testid="collapsedControl"]{
-  display:flex !important; visibility:visible !important;
-  opacity:1 !important; z-index:999 !important;
-  pointer-events:auto !important;
+/* Collapse the header to zero height WITHOUT display:none — the sidebar expand
+   chevron lives inside this element, so display:none buries it permanently. */
+header[data-testid="stHeader"]{
+  height:0 !important; min-height:0 !important;
+  padding:0 !important; background:transparent !important;
+  overflow:visible !important; border:none !important;
 }
-[data-testid="collapsedControl"] svg{ fill:var(--muted) !important; }
+/* Ensure sidebar expand/collapse buttons are always visible & clickable.
+   Cover both the legacy (collapsedControl) and current (stSidebarCollapsedControl)
+   test-ids used across Streamlit versions. */
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapsedControl"]{
+  display:flex !important; visibility:visible !important;
+  opacity:1 !important; z-index:1200 !important;
+  pointer-events:auto !important; position:fixed !important;
+  top:0.6rem !important; left:0.5rem !important;
+}
+[data-testid="collapsedControl"] svg,
+[data-testid="stSidebarCollapsedControl"] svg{ fill:var(--muted) !important; }
 .block-container{ padding-top:2.2rem; padding-bottom:4rem; max-width:1180px; }
 
 /* ---- scrollbar ---- */
