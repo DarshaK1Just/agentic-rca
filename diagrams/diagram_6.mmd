@@ -1,8 +1,0 @@
-flowchart TB
-    RAW["Raw log line + line number"] --> EV["LogEvent.event_id<br/>(stable citation handle)"]
-    EV --> TOOL["Tool returns EvidenceRow<br/>(event_id, line_no, source_file)"]
-    TOOL --> CTX["Bounded evidence block (&le; 40 rows)"]
-    CTX --> LLM["LLM narration<br/>instruction: cite every claim as 'event N'"]
-    LLM --> CHK{"Is every cited id<br/>in the retrieved set?"}
-    CHK -->|yes| TRUST["Trusted, fully-cited answer"]
-    CHK -->|no| FALL["Revert to deterministic narrative<br/>(no hallucination can survive)"]

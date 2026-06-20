@@ -1,7 +1,0 @@
-flowchart TB
-    Q["Query: failures impacting TENANT-Z?"] --> PART{"Partition by tenant_id"}
-    PART -->|"TENANT-Y: 2,399 lines<br/>1,799 × 429 flood"| DROP["excluded — named as<br/>unrelated noise"]
-    PART -->|"TENANT-Z: 201 lines"| ZED["scan TENANT-Z only"]
-    ZED --> STRIP["drop 199 benign INFO<br/>token-validations"]
-    STRIP --> NEEDLE["2 needles remain:<br/>ERROR token-validation timeout (line 2451)<br/>WARN SLA breach 2500ms (line 2456)"]
-    NEEDLE --> ANS["TENANT-Z root cause,<br/>TENANT-Y flood explicitly excluded"]
